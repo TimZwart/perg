@@ -16,14 +16,21 @@ with open(exclude_filepath) as exclude_file :
     exclude_lines = exclude_file.readlines()
 excludes = map(str.strip, exclude_lines)
 
+excluded_extensions_filename = "excluded_extensions.perg"
+excluded_extensions_filepath = "/".join([script_dir, excluded_extensions_filename])
+with open(excluded_extensions_filepath) as excluded_extensions_file :
+    excluded_extensions_lines = excluded_extensions_file.readlines()
+excluded_extensions = map(str.strip, excluded_extensions_lines)
+
 def walk_folder(folder, searchterm):
     matchesFound = False
     for (dirpath, dirnames, filenames) in os.walk(folder):
         for filename in filenames:
             dirs = dirpath.split("/")
             intersec = [x for x in dirs if x in excludes]
+            filename_parts = filename.split(".")
 #            pdb.set_trace()
-            if intersec == []:
+            if intersec == [] and (len(filename_parts) == 1 or filename_parts[-1] not in excluded_extensions):
                 try:
                     filepath = "/".join([dirpath , filename])
                     opened = open(filepath)

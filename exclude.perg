@@ -1,3 +1,5 @@
 jacoco
 test
 target
+bin
+KarmaTest
