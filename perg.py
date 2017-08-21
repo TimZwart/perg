@@ -39,6 +39,10 @@ def walk_folder(folder, searchterm):
                     if idx != -1:
                         print filepath
                         matchesFound = True
+                        f_lines = str_f.split('\n')
+                        matching_lines = [l for l in f_lines if l.find(searchterm) != -1]
+                        for m in matching_lines:
+                            print "    ", m
                 except UnicodeDecodeError:
                     print "nontext file"
                 except IOError:
