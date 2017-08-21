@@ -14,7 +14,8 @@ exclude_filename = "exclude.perg"
 exclude_filepath =  "/".join([script_dir, exclude_filename])
 with open(exclude_filepath) as exclude_file :
     exclude_lines = exclude_file.readlines()
-excludes = map(str.strip, exclude_lines)
+exclude_list = map(str.strip, exclude_lines)
+excludes = set(exclude_list)
 
 excluded_extensions_filename = "excluded_extensions.perg"
 excluded_extensions_filepath = "/".join([script_dir, excluded_extensions_filename])
@@ -25,12 +26,12 @@ excluded_extensions = map(str.strip, excluded_extensions_lines)
 def walk_folder(folder, searchterm):
     matchesFound = False
     for (dirpath, dirnames, filenames) in os.walk(folder):
+        dirnames = list(set(dirnames) - excludes)
         for filename in filenames:
             dirs = dirpath.split("/")
-            intersec = [x for x in dirs if x in excludes]
             filename_parts = filename.split(".")
 #            pdb.set_trace()
-            if intersec == [] and (len(filename_parts) == 1 or filename_parts[-1] not in excluded_extensions):
+            if len(filename_parts) == 1 or filename_parts[-1] not in excluded_extensions:
                 try:
                     filepath = "/".join([dirpath , filename])
                     opened = open(filepath)
@@ -47,8 +48,6 @@ def walk_folder(folder, searchterm):
                     print "nontext file"
                 except IOError:
                     print "IO error"
-            elif intersec is None:
-                print "error intersection list is None"
     if not matchesFound:
         print "no matches found"
 
