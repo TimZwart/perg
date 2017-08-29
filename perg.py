@@ -26,7 +26,7 @@ excluded_extensions = map(str.strip, excluded_extensions_lines)
 def walk_folder(folder, searchterm):
     matchesFound = False
     for (dirpath, dirnames, filenames) in os.walk(folder):
-        dirnames = list(set(dirnames) - excludes)
+        dirnames[:] = [d for d in dirnames if not (d in excludes)]
         for filename in filenames:
             dirs = dirpath.split("/")
             filename_parts = filename.split(".")
