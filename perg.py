@@ -2,6 +2,7 @@
 import os
 import argparse
 import pdb
+from functools import reduce
 
 parser = argparse.ArgumentParser()
 parser.add_argument("directory")
@@ -23,7 +24,20 @@ with open(excluded_extensions_filepath) as excluded_extensions_file :
     excluded_extensions_lines = excluded_extensions_file.readlines()
 excluded_extensions = map(str.strip, excluded_extensions_lines)
 
+#get standard directories to search
+default_search_directories_filename = "defeault_search_directories.perg"
+default_search_directories_filepath = "/".join([script_dir, exclude_filename]) 
+with open(excluded_extensions_filepath) as excluded_extensions_file :
+    excluded_extensions_lines = excluded_extensions_file.readlines()
+default_search_directories = map(str.strip, excluded_extensions_lines) 
+
+search_directories_raw = default_search_directories + [arguments.directory]
+search_directories_fullpath = map(os.path.abspath, search_directories_raw)
+search_directories = list(set(search_directories_fullpath))
+
+
 def walk_folder(folder, searchterm):
+    print "Searching folder", folder
     matchesFound = False
     for (dirpath, dirnames, filenames) in os.walk(folder):
         dirnames[:] = [d for d in dirnames if not (d in excludes)]
@@ -49,6 +63,11 @@ def walk_folder(folder, searchterm):
                 except IOError:
                     print "IO error"
     if not matchesFound:
-        print "no matches found"
+        return False
+    else:
+        return True
 
-walk_folder(arguments.directory, arguments.searchterm)
+matchesFound = reduce((lambda x,y: x and y), map((lambda x: walk_folder(x, arguments.searchterm)), search_directories))
+
+if not matchesFound:
+    print "no matches found"
