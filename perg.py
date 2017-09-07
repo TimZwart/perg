@@ -10,8 +10,8 @@ parser.add_argument("searchterm")
 arguments = parser.parse_args();
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
-exclude_filename = "exclude.perg"
 
+exclude_filename = "exclude.perg"
 exclude_filepath =  "/".join([script_dir, exclude_filename])
 with open(exclude_filepath) as exclude_file :
     exclude_lines = exclude_file.readlines()
@@ -25,16 +25,15 @@ with open(excluded_extensions_filepath) as excluded_extensions_file :
 excluded_extensions = map(str.strip, excluded_extensions_lines)
 
 #get standard directories to search
-default_search_directories_filename = "defeault_search_directories.perg"
-default_search_directories_filepath = "/".join([script_dir, exclude_filename]) 
-with open(excluded_extensions_filepath) as excluded_extensions_file :
-    excluded_extensions_lines = excluded_extensions_file.readlines()
-default_search_directories = map(str.strip, excluded_extensions_lines) 
+default_search_directories_filename = "default_search_directories.perg"
+default_search_directories_filepath = "/".join([script_dir, default_search_directories_filename]) 
+with open(default_search_directories_filepath) as defeault_search_directories_file:
+    default_search_directories_lines = defeault_search_directories_file.readlines()
+default_search_directories = map(str.strip, default_search_directories_lines) 
 
 search_directories_raw = default_search_directories + [arguments.directory]
 search_directories_fullpath = map(os.path.abspath, search_directories_raw)
 search_directories = list(set(search_directories_fullpath))
-
 
 def walk_folder(folder, searchterm):
     print "Searching folder", folder
@@ -62,12 +61,11 @@ def walk_folder(folder, searchterm):
                     print "nontext file"
                 except IOError:
                     print "IO error"
-    if not matchesFound:
-        return False
-    else:
-        return True
+    return matchesFound
 
-matchesFound = reduce((lambda x,y: x and y), map((lambda x: walk_folder(x, arguments.searchterm)), search_directories))
+print "Searchterm: ", arguments.searchterm
+foundResults = map((lambda x: walk_folder(x, arguments.searchterm)), search_directories)
+matchesFound = reduce((lambda x,y: x or y), foundResults)
 
 if not matchesFound:
     print "no matches found"
