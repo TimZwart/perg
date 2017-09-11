@@ -29,7 +29,8 @@ default_search_directories_filename = "default_search_directories.perg"
 default_search_directories_filepath = "/".join([script_dir, default_search_directories_filename]) 
 with open(default_search_directories_filepath) as defeault_search_directories_file:
     default_search_directories_lines = defeault_search_directories_file.readlines()
-default_search_directories = map(str.strip, default_search_directories_lines) 
+not_commented_searchdir_lines = [d for d in default_search_directories_lines if not d.startswith('#')]
+default_search_directories = map(str.strip, not_commented_searchdir_lines) 
 
 search_directories_raw = default_search_directories + [arguments.directory]
 search_directories_fullpath = map(os.path.abspath, search_directories_raw)
