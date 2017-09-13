@@ -1,4 +1,4 @@
-#Perg
+# Perg
 
 In the beginning, there was *grep*. What i used it for is mostly grep -r to find code. however this is extremely slow because grep -r searches literally everything. so we need a smarter search tool. 
 
