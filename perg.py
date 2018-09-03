@@ -3,6 +3,7 @@ import os
 import argparse
 import pdb
 import zipfile
+import shutil
 from functools import reduce
 from binaryornot.check import is_binary
 
@@ -62,22 +63,22 @@ def walk_folder(folder, searchterm, includefirstline = True):
                   walk_folder(unzipped_name, searchterm, False)
                   shutil.rmtree(unzipped_name) #delete after we're done
                 try:
-                    filepath = "/".join([dirpath , filename])
-                    if is_binary(filepath):
-                        break
-                    opened = open(filepath)
-                    str_f = opened.read()
-                    idx = str_f.find(searchterm)
-                    if idx != -1:
-                        print filepath
-                        matchesFound = True
-                        f_lines = str_f.split('\n')
-                        matching_lines = [l for l in f_lines if l.find(searchterm) != -1]
-                        for m in matching_lines:
-                            print "    ", m
-                    else:
-                        if filename.find(searchterm) != -1:
-                            print filepath
+                  filepath = "/".join([dirpath , filename])
+                  if is_binary(filepath):
+                      break
+                  opened = open(filepath)
+                  str_f = opened.read()
+                  idx = str_f.find(searchterm)
+                  if idx != -1:
+                      print filepath
+                      matchesFound = True
+                      f_lines = str_f.split('\n')
+                      matching_lines = [l for l in f_lines if l.find(searchterm) != -1]
+                      for m in matching_lines:
+                          print "    ", m
+                  else:
+                      if filename.find(searchterm) != -1:
+                          print filepath
                 except UnicodeDecodeError:
                     print "nontext file"
                 except IOError:
