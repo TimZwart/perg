@@ -43,46 +43,68 @@ search_directories = list(set(search_directories_fullpath))
 
 zip_extensions = ['zip', 'jar', 'war']
 
+def searchZipFile(dirpath, filename):
+    #unzip it
+    matchesFound = False
+    print "unzipping ", filename
+    zip_ref = zipfile.ZipFile(filepath, 'r')
+    unzipped_name = filename+"#"
+    unzipped_path = "/".join([dirpath, unzipped_name])
+    zip_ref.extractall(unzipped_path)
+    zip_ref.close()
+    matchesFound = walk_folder(unzipped_path, searchterm, False) or matchesFound
+    shutil.rmtree(unzipped_path) #delete after we're done
+
+def searchFile(filepath):
+    opened = open(filepath)
+    str_f = opened.read()
+    idx = str_f.find(searchterm)
+    if idx != -1:
+        print filepath
+        matchesFound = True
+        f_lines = str_f.split('\n')
+        matching_lines = [l for l in f_lines if l.find(searchterm) != -1]
+        for m in matching_lines:
+            print "    ", m
+    else:
+        if filename.find(searchterm) != -1:
+            print filepath
+
+def inner_loop(dirpath, filename):
+    matchesFound = False
+    if dirpath == "/cygdrive/c/Users/tim.zwart/Downloads/INGEX_Core":
+        pdb.set_trace()
+    filename_parts = filename.split(".")
+    filepath = "/".join([dirpath , filename])
+    if len(filename_parts) == 1 or filename_parts[-1] not in excluded_extensions:
+#      print "filename", filename
+#      print "last in filename_parts", filename_parts[-1]
+       if filename_parts[-1] in zip_extensions:
+            matchesFound = searchZipFile(dirpath, filename) or matchesFound
+       else:
+         try:
+           if is_binary(filepath):
+             break
+           searchFile(filepath)
+         except UnicodeDecodeError:
+             print "nontext file"
+         except IOError:
+             print "IO error"
+      return matchesFound
+
+
 def walk_folder(folder, searchterm, includefirstline = True):
+    print "walk_folder called, folder=", folder
     if includefirstline:
         print "Searching folder", folder
     matchesFound = False
+    match_lines = []
     for (dirpath, dirnames, filenames) in os.walk(folder):
+        print "dirpath ", dirpath
+        print "walking files, ", filenames
         dirnames[:] = [d for d in dirnames if not (d in excludes)]
         for filename in filenames:
-            dirs = dirpath.split("/")
-            filename_parts = filename.split(".")
-#           pdb.set_trace()
-            if len(filename_parts) == 1 or filename_parts[-1] not in excluded_extensions:
-                if(filename_parts[-1] in zip_extensions:
-                  #unzip it
-                  zip_ref = zipfile.Zipfile(filename, 'r')
-                  unzipped_name = filename+"#" 
-                  zip_ref.extractall(unzipped_name)
-                  zip_ref.close()
-                  walk_folder(unzipped_name, searchterm, False)
-                  shutil.rmtree(unzipped_name) #delete after we're done
-                try:
-                  filepath = "/".join([dirpath , filename])
-                  if is_binary(filepath):
-                      break
-                  opened = open(filepath)
-                  str_f = opened.read()
-                  idx = str_f.find(searchterm)
-                  if idx != -1:
-                      print filepath
-                      matchesFound = True
-                      f_lines = str_f.split('\n')
-                      matching_lines = [l for l in f_lines if l.find(searchterm) != -1]
-                      for m in matching_lines:
-                          print "    ", m
-                  else:
-                      if filename.find(searchterm) != -1:
-                          print filepath
-                except UnicodeDecodeError:
-                    print "nontext file"
-                except IOError:
-                    print "IO error"
+            matchesFound |= inner_loop
     return matchesFound
 
 print "Searchterm: ", arguments.searchterm
