@@ -6,6 +6,7 @@ import zipfile
 import shutil
 import cProfile
 import pstats
+import subprocess
 from functools import reduce
 from binaryornot.check import is_binary
 
@@ -21,6 +22,7 @@ profile.enable()
 parser = argparse.ArgumentParser()
 parser.add_argument("directory")
 parser.add_argument("searchterm")
+parser.add_argument("switch")
 arguments = parser.parse_args();
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -44,6 +46,10 @@ excluded_extensions =[d for d in raw_excluded_extensions if not d.startswith('#'
 
 print "excluded_extensions are ", excluded_extensions
 
+allowed_extensions = ['java', 'class', 'js', 'jar', 'zip', 'py', 'log', 'vim']
+
+print "allowed_extensions are ", allowed_extensions
+
 #get standard directories to search
 default_search_directories_filename = "default_search_directories.perg"
 default_search_directories_filepath = "/".join([script_dir, default_search_directories_filename]) 
@@ -58,18 +64,25 @@ search_directories = list(set(search_directories_fullpath))
 
 zip_extensions = ['zip', 'jar', 'war']
 
-ONLY_FILENAMES = True
+ONLY_FILENAMES = True if arguments.switch.find("f") != -1 else False
+SEARCH_ZIP_FILES = True if arguments.switch.find("z") != -1 else False
+NOWHITELIST = True if arguments.switch.find("nw") != -1 else False
+
 
 def searchZipFile(dirpath, filename, filepath, searchterm):
     #unzip it
     matchesFound = False
-    zip_ref = zipfile.ZipFile(filepath, 'r')
-    unzipped_name = filename+"#"
-    unzipped_path = "/".join([dirpath, unzipped_name])
-    zip_ref.extractall(unzipped_path)
-    zip_ref.close()
-    matchesFound = walk_folder(unzipped_path, searchterm, False) or matchesFound
-    shutil.rmtree(unzipped_path) #delete after we're done
+    try:
+      zip_ref = zipfile.ZipFile(filepath, 'r')
+      unzipped_name = filename+"#"
+      unzipped_path = "/".join([dirpath, unzipped_name])
+      zip_ref.extractall(unzipped_path)
+      zip_ref.close()
+      matchesFound = walk_folder(unzipped_path, searchterm, False) or matchesFound
+      shutil.rmtree(unzipped_path) #delete after we're done
+    except zipfile.BadZipfile:
+      print "BAD ZIP FILE", filepath
+    return matchesFound
 
 def filenameSearch(filepath, filename, searchterm):
    f1 = open("perg_comparisons", "a+")
@@ -77,48 +90,66 @@ def filenameSearch(filepath, filename, searchterm):
    f1.close()
 #   if filename == "SamlAuthenticationHandler.class":
 #       pdb.set_trace()
-   if filename.find(searchterm) != -1:
+   if findi(filename, searchterm) != -1:
        print filepath
        return True
    return False
 
+def decompileIfJvm(filepath, filename , searchterm):
+    winpath = subprocess.check_output(['cygpath', '-w', filepath])
+    decompiled_string = subprocess.check_output(['jd-cli', winpath])
+    return searchFileString(decompiled_string, filepath, searchterm)
 
-
-def searchFile(filepath, filename, searchterm):
+def searchFileString(str_f, filepath, searchterm):
     matchesFound = False
-    matchesFound = filenameSearch(filepath, filename, searchterm) 
-    if (ONLY_FILENAMES):
-      return matchesFound
-    if is_binary(filepath):
-      return matchesFound
-    opened = open(filepath)
-    str_f = opened.read()
-    idx = str_f.find(searchterm)
+    strfilecaps = str_f.capitalize()
+    idx = findi(strfilecaps, searchterm)
     if idx != -1:
         if not matchesFound:
             print filepath
         matchesFound = True
         f_lines = str_f.split('\n')
-        matching_lines = [l for l in f_lines if l.find(searchterm) != -1]
+        matching_lines = [l for l in f_lines if findi(l, searchterm) != -1]
         for m in matching_lines:
             print "    ", m
+    return matchesFound
+
+
+def searchFile(filepath, filename, searchterm, file_extension):
+    matchesFound = False
+    matchesFound = filenameSearch(filepath, filename, searchterm) 
+    if (ONLY_FILENAMES):
+      return matchesFound
+    #check if its a java class file, if so decompile it
+    if file_extension == 'class': 
+        matchesFound = decompileIfJvm(filepath, filename, searchterm) or matchesFound  
+    else:
+        if is_binary(filepath):
+          return matchesFound
+        opened = open(filepath)
+        str_f = opened.read()
+        matchesFound = searchFileString(str_f, filepath, searchterm) or matchesFound
+    if matchesFound:
+        return True
     else:
         return filenameSearch(filepath, filename, searchterm)
+
+def findi(string, term):
+    cString = string.upper()
+    cTerm = term.upper()
+    return cString.find(cTerm)
 
 def inner_loop(dirpath, filename, searchterm):
     matchesFound = False
     filename_parts = filename.split(".")
     filepath = "/".join([dirpath , filename])
-    if len(filename_parts) == 1 or filename_parts[-1] not in excluded_extensions:
-#       if dirpath == "/cygdrive/c/Users/tim.zwart/Downloads/INGEX_Core":
-#            pdb.set_trace()
-#      print "filename", filename
-#      print "last in filename_parts", filename_parts[-1]
-       if filename_parts[-1] in zip_extensions:
+    file_extension = filename_parts[-1]
+    if (len(filename_parts) == 1 or file_extension not in excluded_extensions) and (filename_parts[-1] in allowed_extensions or NOWHITELIST):
+       if file_extension in zip_extensions and SEARCH_ZIP_FILES:
             matchesFound = searchZipFile(dirpath, filename, filepath, searchterm) or matchesFound
        else:
          try:
-           matchesFound = searchFile(filepath, filename, searchterm) or matchesFound
+           matchesFound = searchFile(filepath, filename, searchterm, file_extension) or matchesFound
          except UnicodeDecodeError:
              print "nontext file"
          except IOError:
