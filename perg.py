@@ -7,6 +7,9 @@ import shutil
 import cProfile
 import pstats
 import subprocess
+import javalang
+import re
+import regex
 from functools import reduce
 from binaryornot.check import is_binary
 
@@ -42,7 +45,7 @@ excluded_extensions_filepath = "/".join([script_dir, excluded_extensions_filenam
 with open(excluded_extensions_filepath) as excluded_extensions_file :
     excluded_extensions_lines = excluded_extensions_file.readlines()
 raw_excluded_extensions = map(str.strip, excluded_extensions_lines)
-excluded_extensions =[d for d in raw_excluded_extensions if not d.startswith('#')] 
+excluded_extensions = [d for d in raw_excluded_extensions if not d.startswith('#')] 
 
 print "excluded_extensions are ", excluded_extensions
 
@@ -67,7 +70,10 @@ zip_extensions = ['zip', 'jar', 'war']
 ONLY_FILENAMES = True if arguments.switch.find("f") != -1 else False
 SEARCH_ZIP_FILES = True if arguments.switch.find("z") != -1 else False
 NOWHITELIST = True if arguments.switch.find("nw") != -1 else False
+JAVA_MODE = True if arguments.switch.find("j") != -1 else False
 
+if JAVA_MODE and ONLY_FILENAMES:
+    exit("not allowed idiot. specify j or f, not both")
 
 def searchZipFile(dirpath, filename, filepath, searchterm):
     #unzip it
@@ -96,14 +102,31 @@ def filenameSearch(filepath, filename, searchterm):
    return False
 
 def decompileIfJvm(filepath, filename , searchterm):
-    winpath = subprocess.check_output(['cygpath', '-w', filepath])
-    decompiled_string = subprocess.check_output(['jd-cli', winpath])
+    cache_path = "/c/perg_cache"
+    cachefile_path = cache_path+"/"+filepath
+    try:
+        cachefile = open(cachefile_path, "r")
+        decompiled_string = cachefile.read()
+    except IOError:
+        winpath = subprocess.check_output(['cygpath', '-w', filepath])
+        decompiled_string = subprocess.check_output(['jd-cli', winpath])
+        thedir = os.path.dirname(cachefile_path)
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+        jdb.set_trace()
+        with open(cachefile_path, "w") as cachefile:
+            cachefile.write(decompiled_string)
     return searchFileString(decompiled_string, filepath, searchterm)
 
 def searchFileString(str_f, filepath, searchterm):
+    if JAVA_MODE:
+        return JavaSearchFileString(str_f, filepath, searchterm)
+    else: 
+        return NormalSearchFileString(str_f, filepath, searchterm)
+
+def NormalSearchFileString(str_f, filepath, searchterm):
     matchesFound = False
-    strfilecaps = str_f.capitalize()
-    idx = findi(strfilecaps, searchterm)
+    idx = findi(str_f, searchterm)
     if idx != -1:
         if not matchesFound:
             print filepath
@@ -114,6 +137,58 @@ def searchFileString(str_f, filepath, searchterm):
             print "    ", m
     return matchesFound
 
+def collectCallers(revstr_f):
+    idx = revstrfromi.find('.')
+    if idx != -1:
+        return collectCallers(revstrfromi[,idx]) union [reversed(revstr_f)]
+    else
+        return [reversed(revstrfromi)]
+        #and we're done
+
+def flatten(l):
+  out = []
+  for item in l:
+    if isinstance(item, (list, tuple)):
+      out.extend(flatten(item))
+    else:
+      out.append(item)
+  return out
+
+def searchNearestClassDeclaration(s, idx):
+    #return list of interfaces and classes
+    struntili = str_f[0, idx]
+    revstrfromi = reversed(struntili)
+
+def JavaSearchFileString(str_f, filepath, searchterm):
+    idx = findi(str_f, searchterm)
+    if idx != -1:
+    #check which object
+    if str_f[idx-1] == '.':
+        codeunits = flatten((str_f[0, i-1]).split(';').map(s : s.split('{')).map(s : s.split('}')))
+        revstrfromi = reversed(codeunits[-1])
+        callers = collectCallers(revstrfromi)
+    else
+        #no explicit calling object: calling object is this
+        type = searchNearestClassDeclaration(str_f, idx)
+    if callers
+    for n in range (0, i):
+        
+    #search for declaration
+    # cut off all the lines before
+
+def JavaSearchFileString(str_f, filepath, searchterm):
+    pdb.set_trace()
+    jFile = javalang.parse.parse(str_f)
+    if re.match(searchterm, "^[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+"):
+        parts = re.split(searchterm, "^[a-zA-Z0-9_]+")
+        searchType = parts[0]
+        searchProperty = (parts[1])[1,]
+        types = regex.findall("(class|interface)\s+\w+\s+{ ( (?>[^{}]+ | (?R) )*}", str_f)
+        #check for any variables of the first Type, among those search for anytime the second method or property get acccessed
+        for type in jFile.types:
+            #if this class is of the right type and happens to have references to this.searchedProperty they should show up
+            if findAllSuperTypes(jType.name).find(searchType):
+               findAllSelfReferences(jType).find(searchProperty)
 
 def searchFile(filepath, filename, searchterm, file_extension):
     matchesFound = False
