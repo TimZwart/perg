@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/python
 import os
 import argparse
 import pdb
@@ -67,6 +67,7 @@ zip_extensions = ['zip', 'jar', 'war']
 ONLY_FILENAMES = True if arguments.switch.find("f") != -1 else False
 SEARCH_ZIP_FILES = True if arguments.switch.find("z") != -1 else False
 NOWHITELIST = True if arguments.switch.find("nw") != -1 else False
+DECOMPILE = True if arguments.switch.find("d") != -1 else False
 
 
 def searchZipFile(dirpath, filename, filepath, searchterm):
@@ -96,8 +97,11 @@ def filenameSearch(filepath, filename, searchterm):
    return False
 
 def decompileIfJvm(filepath, filename , searchterm):
-    winpath = subprocess.check_output(['cygpath', '-w', filepath])
-    decompiled_string = subprocess.check_output(['jd-cli', winpath])
+    if platform.system() == "Windows":
+        jvmpath = subprocess.check_output(['cygpath', '-w', filepath])
+    else:
+        jvmpath = filepath
+    decompiled_string = subprocess.check_output(['jd-cli', jvmpath])
     return searchFileString(decompiled_string, filepath, searchterm)
 
 def searchFileString(str_f, filepath, searchterm):
@@ -121,7 +125,7 @@ def searchFile(filepath, filename, searchterm, file_extension):
     if (ONLY_FILENAMES):
       return matchesFound
     #check if its a java class file, if so decompile it
-    if file_extension == 'class': 
+    if file_extension == 'class' and DECOMPILE: 
         matchesFound = decompileIfJvm(filepath, filename, searchterm) or matchesFound  
     else:
         if is_binary(filepath):
